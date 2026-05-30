@@ -1,0 +1,22 @@
+{
+  "exclude": [
+    "[xunit.*]*",
+    "[*.Tests]*",
+    "[Microsoft.*]*",
+    "[System.*]*"
+  ],
+  "excludeByFile": [
+    "**/*.cshtml",
+    "**/Program.cs",
+    "**/Startup.cs"
+  ],
+  "include": [
+    "[DryFish.ILib.Random]*"
+  ],
+  "includeDirectory": [
+    "../main/"
+  ],
+  "threshold": 80,
+  "thresholdType": "line",
+  "thresholdStat": "total"
+}
