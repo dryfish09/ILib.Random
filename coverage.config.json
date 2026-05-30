@@ -1,0 +1,38 @@
+{
+  "coverage": {
+    "output": "./coverage-results",
+    "format": ["lcov", "opencover", "cobertura", "json", "text"],
+    "threshold": {
+      "line": 85,
+      "branch": 80,
+      "method": 90
+    },
+    "exclude": {
+      "attributes": [
+        "System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute",
+        "System.Runtime.CompilerServices.CompilerGeneratedAttribute"
+      ],
+      "files": [
+        "**/Program.cs",
+        "**/Startup.cs",
+        "**/*.Designer.cs",
+        "**/*.generated.cs"
+      ],
+      "sourceFiles": [
+        "**/obj/**/*.cs",
+        "**/bin/**/*.cs"
+      ]
+    },
+    "include": {
+      "assemblies": [
+        "DryFish.ILib.Random"
+      ]
+    },
+    "reports": {
+      "html": true,
+      "markdown": true,
+      "badge": true,
+      "summary": true
+    }
+  }
+}
