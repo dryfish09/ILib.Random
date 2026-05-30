@@ -69,3 +69,19 @@ ehthumbs.db
 Thumbs.db
 *.tmp
 *.swp
+# Coverage results
+coverage-results/
+coverage/
+*.coverage
+*.coveragexml
+*.cobertura.xml
+*.lcov
+*.opencover.xml
+*.json.coverage
+TestResults/
+CoverageReport/
+
+# Coverage tools
+.codecov/
+.nyc_output/
+coverage/
