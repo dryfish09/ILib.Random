@@ -8,13 +8,27 @@ namespace DryFish.ILib.Random
     /// </summary>
     public static class ILibRandom
     {
-        private static readonly System.Random _random = new System.Random();
-        
+#if NET6_0_OR_GREATER
+        // .NET 6+ has built-in thread-safe Random.Shared
+        private static System.Random _random => System.Random.Shared;
+#else
+        // Thread-safe for older frameworks using ThreadStatic
+        [ThreadStatic]
+        private static System.Random? _localRandom;
+        private static System.Random _random => _localRandom ??= new System.Random();
+#endif
+
+        // Cached colors array - avoid allocation on every call
+        private static readonly string[] ConsoleColors = {
+            "black", "darkblue", "darkgreen", "darkcyan", "darkred", 
+            "darkmagenta", "darkyellow", "gray", "grey", "darkgray", 
+            "darkgrey", "blue", "green", "cyan", "red", "magenta", 
+            "yellow", "white"
+        };
+
         /// <summary>
         /// Returns a random element from the specified array
         /// </summary>
-        /// <param name="array">Array of strings</param>
-        /// <returns>Random element from array</returns>
         public static string IRandomFromArray(string[] array)
         {
             if (array == null || array.Length == 0)
@@ -26,9 +40,6 @@ namespace DryFish.ILib.Random
         /// <summary>
         /// Returns a random element from the specified array (generic)
         /// </summary>
-        /// <typeparam name="T">Type of array elements</typeparam>
-        /// <param name="array">Array of type T</param>
-        /// <returns>Random element from array</returns>
         public static T IRandomFromArray<T>(T[] array)
         {
             if (array == null || array.Length == 0)
@@ -40,12 +51,14 @@ namespace DryFish.ILib.Random
         /// <summary>
         /// Returns a random integer between min and max (inclusive)
         /// </summary>
-        /// <param name="min">Minimum value</param>
-        /// <param name="max">Maximum value</param>
-        /// <returns>Random integer</returns>
         public static int IRandomInt(int min, int max)
         {
-            return _random.Next(min, max + 1);
+            if (min > max)
+                throw new ArgumentException("min must be <= max");
+                
+            double range = (double)max - (double)min;
+            int offset = (int)(_random.NextDouble() * (range + 1.0));
+            return min + offset;
         }
         
         /// <summary>
@@ -59,26 +72,31 @@ namespace DryFish.ILib.Random
         /// <summary>
         /// Returns a random character between min and max
         /// </summary>
-        /// <param name="min">Minimum character</param>
-        /// <param name="max">Maximum character</param>
-        /// <returns>Random character</returns>
         public static char IRandomChar(char min, char max)
         {
+            if (min > max)
+                throw new ArgumentException("min must be <= max");
+                
             return (char)_random.Next(min, max + 1);
         }
         
         /// <summary>
         /// Returns a random alphabet character between min and max
         /// </summary>
-        /// <param name="min">Minimum alphabet (e.g., 'A')</param>
-        /// <param name="max">Maximum alphabet (e.g., 'Z')</param>
-        /// <returns>Random alphabet character</returns>
         public static char IRandomAlphabet(char min, char max)
         {
+            if (min > max)
+                throw new ArgumentException("min must be <= max");
             if (!char.IsLetter(min) || !char.IsLetter(max))
                 throw new ArgumentException("Only alphabet characters allowed");
                 
-            return (char)_random.Next(min, max + 1);
+            char result;
+            do
+            {
+                result = (char)_random.Next(min, max + 1);
+            } while (!char.IsLetter(result));
+            
+            return result;
         }
         
         /// <summary>
@@ -110,10 +128,21 @@ namespace DryFish.ILib.Random
         /// </summary>
         public static long IRandomLong(long min, long max)
         {
-            if (min > max) throw new ArgumentException("min must be <= max");
-            long range = max - min;
-            long rand = (long)(_random.NextDouble() * (range + 1));
-            return min + rand;
+            if (min > max) 
+                throw new ArgumentException("min must be <= max");
+
+            ulong range = (ulong)(max - min);
+            if (range == ulong.MaxValue)
+            {
+                byte[] buf = new byte[8];
+                _random.NextBytes(buf);
+                return BitConverter.ToInt64(buf, 0);
+            }
+
+            byte[] bytes = new byte[8];
+            _random.NextBytes(bytes);
+            ulong uval = BitConverter.ToUInt64(bytes, 0);
+            return min + (long)(uval % (range + 1));
         }
         
         /// <summary>
@@ -121,20 +150,20 @@ namespace DryFish.ILib.Random
         /// </summary>
         public static double IRandomDouble(double min = 0.0, double max = 1.0)
         {
-            if (min > max) throw new ArgumentException("min must be <= max");
+            if (min > max) 
+                throw new ArgumentException("min must be <= max");
+                
             return min + (_random.NextDouble() * (max - min));
         }
         
         /// <summary>
         /// Returns a random item from a list
         /// </summary>
-        /// <typeparam name="T">Type of list elements</typeparam>
-        /// <param name="list">List of type T</param>
-        /// <returns>Random item from list</returns>
         public static T IRandomItem<T>(IList<T> list)
         {
             if (list == null || list.Count == 0)
                 throw new ArgumentException("List cannot be null or empty");
+                
             return list[_random.Next(list.Count)];
         }
         
@@ -159,11 +188,7 @@ namespace DryFish.ILib.Random
         /// </summary>
         public static string IRandomConsoleColor()
         {
-            string[] colors = { "black", "darkblue", "darkgreen", "darkcyan", "darkred", 
-                                "darkmagenta", "darkyellow", "gray", "grey", "darkgray", 
-                                "darkgrey", "blue", "green", "cyan", "red", "magenta", 
-                                "yellow", "white" };
-            return IRandomFromArray(colors);
+            return IRandomFromArray(ConsoleColors);
         }
     }
 }
