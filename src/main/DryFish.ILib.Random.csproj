@@ -29,7 +29,7 @@
     
     <!-- Output -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageOutputPath>../../nupkg</PackageOutputPath>
+    <PackageOutputPath>../nupkg</PackageOutputPath>
   </PropertyGroup>
 
   <!-- .NET 6+ specific features -->
@@ -50,8 +50,8 @@
 
   <!-- Include README and LICENSE in package -->
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="/"/>
-    <None Include="../../LICENSE" Pack="true" PackagePath="/"/>
+    <None Include="../README.md" Pack="true" PackagePath="/"/>
+    <None Include="../LICENSE" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
   <!-- Conditional reference for .NET Framework -->
