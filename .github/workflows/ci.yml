@@ -1,32 +1,126 @@
-name: CI - Build & Test
+name: Build, Test, and Publish DryFish.ILib.Random
 
 on:
   push:
     branches: [ main, develop ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
     
     strategy:
       matrix:
-        dotnet: ['6.0.x', '8.0.x']
-        
-    steps:
-    - uses: actions/checkout@v4
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        framework: ['net8.0', 'net7.0', 'net6.0', 'net48']
+        exclude:
+          - os: macos-latest
+            framework: 'net48'
+          - os: ubuntu-latest
+            framework: 'net48'
     
-    - name: Setup .NET ${{ matrix.dotnet }}
-      uses: actions/setup-dotnet@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: ${{ matrix.dotnet }}
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Setup .NET Framework (Windows only)
+      if: runner.os == 'Windows'
+      run: |
+        echo "Using .NET Framework 4.8"
     
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore src/main/DryFish.ILib.Random.csproj
     
     - name: Build
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build src/main/DryFish.ILib.Random.csproj --configuration Release --framework ${{ matrix.framework }} --no-restore
     
-    - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal
+    - name: Test
+      if: matrix.framework != 'net48' || runner.os == 'Windows'
+      run: dotnet test src/test/DryFish.ILib.Random.Test.csproj --configuration Release --framework ${{ matrix.framework }} --no-build --verbosity normal
+
+  pack:
+    name: Pack NuGet
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Pack NuGet package
+      run: dotnet pack src/main/DryFish.ILib.Random.csproj --configuration Release --output ./artifacts --include-symbols
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: nuget-packages
+        path: |
+          ./artifacts/*.nupkg
+          ./artifacts/*.snupkg
+
+  publish:
+    name: Publish to NuGet
+    needs: pack
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: nuget-packages
+        path: ./artifacts
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+    
+    - name: Pack with version
+      run: |
+        dotnet pack src/main/DryFish.ILib.Random.csproj \
+          --configuration Release \
+          -p:PackageVersion=${{ steps.get_version.outputs.VERSION }} \
+          --output ./artifacts \
+          --include-symbols
+    
+    - name: Publish to NuGet.org
+      run: |
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        files: ./artifacts/*.nupkg
+        generate_release_notes: true
+        name: Release v${{ steps.get_version.outputs.VERSION }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
