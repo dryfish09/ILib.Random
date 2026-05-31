@@ -1,0 +1,11 @@
+{
+  "sdk": {
+    "version": "8.0.0",
+    "rollForward": "latestMajor",
+    "allowPrerelease": false
+  },
+  "projects": [
+    "src/**/*.csproj"
+  ],
+  "msbuild-sdks": {}
+}
