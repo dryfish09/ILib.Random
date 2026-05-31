@@ -2,6 +2,7 @@ using Xunit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DryFish.ILib.Random
 
 namespace DryFish.ILib.Random.Tests;
 
