@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFrameworks>net8.0;net6.0;netstandard2.0;net462</TargetFrameworks>
     <Nullable>enable</Nullable>
@@ -7,13 +8,21 @@
     <PackageId>DryFish.ILib.Random</PackageId>
     <Version>2026.1.0</Version>
     <Authors>DryFish</Authors>
-    <Description>Random generation utilities for DryFish.ILib - strings, numbers, chars, and more</Description>
-    <PackageTags>random, utility, generation, dryfish, ilib</PackageTags>
+    <Description>Random generation utilities for DryFish.ILib</Description>
+    <PackageTags>random;utility;dryfish;ilib</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/dryfish09/ILib.Random</RepositoryUrl>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\"/>
-  </ItemGroup>
+  <!-- Chỉ enable nullable cho .NET 6/8 -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net8.0'">
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  
+  <!-- Disable nullable cho .NET Standard và .NET Framework -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net462'">
+    <Nullable>disable</Nullable>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
+
 </Project>
