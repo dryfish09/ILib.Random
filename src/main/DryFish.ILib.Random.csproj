@@ -48,10 +48,10 @@
     <DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
-  <!-- Include README and LICENSE in package -->
+  <!-- Include README and LICENSE in package - đường dẫn đã sửa -->
   <ItemGroup>
-    <None Include="../README.md" Pack="true" PackagePath="/"/>
-    <None Include="../LICENSE" Pack="true" PackagePath="/"/>
+    <None Include="../../README.md" Pack="true" PackagePath="/"/>
+    <None Include="../../LICENSE" Pack="true" PackagePath="/"/>
   </ItemGroup>
 
   <!-- Conditional reference for .NET Framework -->
