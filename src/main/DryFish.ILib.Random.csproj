@@ -1,28 +1,61 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net6.0;netstandard2.0;net462</TargetFrameworks>
-    <Nullable>enable</Nullable>
+    <!-- Target multiple frameworks -->
+    <TargetFrameworks>net8.0;net7.0;net6.0;netstandard2.0;net48;net472;net462</TargetFrameworks>
+    
     <ImplicitUsings>enable</ImplicitUsings>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Nullable>enable</Nullable>
+    <LangVersion>10.0</LangVersion>
+    
+    <!-- Package info -->
     <PackageId>DryFish.ILib.Random</PackageId>
     <Version>2026.1.0</Version>
     <Authors>DryFish</Authors>
-    <Description>Random generation utilities for DryFish.ILib</Description>
-    <PackageTags>random;utility;dryfish;ilib</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Company>DryFish</Company>
+    <Description>Random generation utilities for DryFish.ILib - strings, numbers, characters, colors, dates and more. Supports .NET 6/7/8, .NET Standard 2.0, and .NET Framework 4.6.2+.</Description>
+    <PackageTags>random;utility;generation;dryfish;ilib;dotnet;cross-platform;randomizer</PackageTags>
     <RepositoryUrl>https://github.com/dryfish09/ILib.Random</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    
+    <!-- README for NuGet -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- Generate documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    
+    <!-- Symbols for debugging -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    
+    <!-- Output -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageOutputPath>../../nupkg</PackageOutputPath>
   </PropertyGroup>
 
-  <!-- Chỉ enable nullable cho .NET 6/8 -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net8.0'">
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-  
-  <!-- Disable nullable cho .NET Standard và .NET Framework -->
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net462'">
-    <Nullable>disable</Nullable>
-    <LangVersion>8.0</LangVersion>
+  <!-- .NET 6+ specific features -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0' Or '$(TargetFramework)' == 'net7.0' Or '$(TargetFramework)' == 'net6.0'">
+    <DefineConstants>$(DefineConstants);NET6_0_OR_GREATER</DefineConstants>
   </PropertyGroup>
 
+  <!-- .NET Framework specific -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48' Or '$(TargetFramework)' == 'net472' Or '$(TargetFramework)' == 'net462'">
+    <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8603;CS8604;CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+
+  <!-- .NET Standard -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Include README and LICENSE in package -->
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/"/>
+    <None Include="../../LICENSE" Pack="true" PackagePath="/"/>
+  </ItemGroup>
+
+  <!-- Conditional reference for .NET Framework -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' Or '$(TargetFramework)' == 'net472' Or '$(TargetFramework)' == 'net462'">
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+  </ItemGroup>
 </Project>
