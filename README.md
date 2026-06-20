@@ -186,7 +186,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Built with .NET 6/7/8 and .NET Standard 2.0
 - Thread-safe random implementation
-- Inspired by DryFish.ILib
 
 ---
 
