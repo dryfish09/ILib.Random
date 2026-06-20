@@ -26,6 +26,19 @@ namespace DryFish.ILib.Random
             "yellow", "white"
         };
 
+        // Cache byte array for performance
+        [ThreadStatic]
+        private static byte[]? _byteBuffer;
+
+        private static byte[] GetByteBuffer()
+        {
+            if (_byteBuffer == null)
+            {
+                _byteBuffer = new byte[8];
+            }
+            return _byteBuffer;
+        }
+
         /// <summary>
         /// Returns a random element from the specified array
         /// </summary>
@@ -56,9 +69,13 @@ namespace DryFish.ILib.Random
             if (min > max)
                 throw new ArgumentException("min must be <= max");
                 
+#if NET6_0_OR_GREATER
+            return System.Random.Shared.Next(min, max + 1);
+#else
             double range = (double)max - (double)min;
             int offset = (int)(_random.NextDouble() * (range + 1.0));
             return min + offset;
+#endif
         }
         
         /// <summary>
@@ -87,9 +104,36 @@ namespace DryFish.ILib.Random
         {
             if (min > max)
                 throw new ArgumentException("min must be <= max");
-            if (!char.IsLetter(min) || !char.IsLetter(max))
-                throw new ArgumentException("Only alphabet characters allowed");
                 
+            // Validate both characters are letters
+            if (!char.IsLetter(min) || !char.IsLetter(max))
+                throw new ArgumentException("Both min and max must be alphabet characters");
+            
+            // Validate the range only contains letters
+            // Check if min and max are both uppercase or both lowercase
+            bool minIsUpper = char.IsUpper(min);
+            bool maxIsUpper = char.IsUpper(max);
+            
+            if (minIsUpper != maxIsUpper)
+                throw new ArgumentException("min and max must be both uppercase or both lowercase");
+            
+            // Validate range doesn't include non-letter characters
+            // For uppercase: A-Z only (65-90)
+            // For lowercase: a-z only (97-122)
+            int minValue = (int)min;
+            int maxValue = (int)max;
+            
+            if (minIsUpper)
+            {
+                if (minValue < 'A' || maxValue > 'Z')
+                    throw new ArgumentException("Range must be within A-Z for uppercase letters");
+            }
+            else
+            {
+                if (minValue < 'a' || maxValue > 'z')
+                    throw new ArgumentException("Range must be within a-z for lowercase letters");
+            }
+            
             char result;
             do
             {
@@ -124,25 +168,44 @@ namespace DryFish.ILib.Random
         }
         
         /// <summary>
-        /// Returns a random long between min and max
+        /// Returns a random long between min and max (inclusive)
         /// </summary>
         public static long IRandomLong(long min, long max)
         {
             if (min > max) 
                 throw new ArgumentException("min must be <= max");
+            
+            if (min == max)
+                return min;
 
+#if NET6_0_OR_GREATER
+            // .NET 6+ has built-in method for long range
+            return System.Random.Shared.NextInt64(min, max + 1);
+#else
+            // For older frameworks, use rejection sampling to avoid bias
             ulong range = (ulong)(max - min);
+            
+            // Handle full range (ulong.MaxValue)
             if (range == ulong.MaxValue)
             {
-                byte[] buf = new byte[8];
-                _random.NextBytes(buf);
-                return BitConverter.ToInt64(buf, 0);
+                byte[] buffer = GetByteBuffer();
+                _random.NextBytes(buffer);
+                return BitConverter.ToInt64(buffer, 0);
             }
-
-            byte[] bytes = new byte[8];
-            _random.NextBytes(bytes);
-            ulong uval = BitConverter.ToUInt64(bytes, 0);
+            
+            // Rejection sampling to eliminate bias
+            ulong limit = ulong.MaxValue - ulong.MaxValue % (range + 1);
+            byte[] bytes = GetByteBuffer();
+            ulong uval;
+            
+            do
+            {
+                _random.NextBytes(bytes);
+                uval = BitConverter.ToUInt64(bytes, 0);
+            } while (uval > limit);
+            
             return min + (long)(uval % (range + 1));
+#endif
         }
         
         /// <summary>
@@ -154,6 +217,50 @@ namespace DryFish.ILib.Random
                 throw new ArgumentException("min must be <= max");
                 
             return min + (_random.NextDouble() * (max - min));
+        }
+        
+        /// <summary>
+        /// Returns a random decimal between min and max
+        /// </summary>
+        public static decimal IRandomDecimal(decimal min, decimal max)
+        {
+            if (min > max)
+                throw new ArgumentException("min must be <= max");
+            
+            if (min == max)
+                return min;
+            
+            // Get a random double and convert to decimal
+            // Using 28-29 digits of precision (maximum for decimal)
+            double randomDouble = _random.NextDouble();
+            decimal randomDecimal = (decimal)randomDouble;
+            
+            // Scale to the range
+            decimal range = max - min;
+            return min + (randomDecimal * range);
+        }
+        
+        /// <summary>
+        /// Returns a random decimal between min and max with specified precision
+        /// </summary>
+        public static decimal IRandomDecimal(decimal min, decimal max, int precision)
+        {
+            if (min > max)
+                throw new ArgumentException("min must be <= max");
+            
+            if (precision < 0 || precision > 28)
+                throw new ArgumentException("precision must be between 0 and 28");
+            
+            if (min == max)
+                return min;
+            
+            // Generate random integer with specified precision
+            long multiplier = (long)Math.Pow(10, precision);
+            long minScaled = (long)(min * multiplier);
+            long maxScaled = (long)(max * multiplier);
+            
+            long randomScaled = IRandomLong(minScaled, maxScaled);
+            return randomScaled / (decimal)multiplier;
         }
         
         /// <summary>
@@ -189,6 +296,29 @@ namespace DryFish.ILib.Random
         public static string IRandomConsoleColor()
         {
             return IRandomFromArray(ConsoleColors);
+        }
+
+        /// <summary>
+        /// Returns a random element from an enumeration
+        /// </summary>
+        public static T IRandomEnum<T>() where T : Enum
+        {
+            var values = Enum.GetValues(typeof(T));
+            return (T)values.GetValue(_random.Next(values.Length))!;
+        }
+
+        /// <summary>
+        /// Returns a random element from an enumeration with exclusion
+        /// </summary>
+        public static T IRandomEnum<T>(T exclude) where T : Enum
+        {
+            var values = Enum.GetValues(typeof(T));
+            T result;
+            do
+            {
+                result = (T)values.GetValue(_random.Next(values.Length))!;
+            } while (result.Equals(exclude));
+            return result;
         }
     }
 }
