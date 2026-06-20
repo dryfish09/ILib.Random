@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace DryFish.ILib.Random
 {
@@ -70,7 +71,8 @@ namespace DryFish.ILib.Random
                 throw new ArgumentException("min must be <= max");
                 
 #if NET6_0_OR_GREATER
-            return System.Random.Shared.Next(min, max + 1);
+            // Safe calculation avoiding overflow when max = int.MaxValue
+            return (int)(min + System.Random.Shared.NextInt64((long)max - min + 1));
 #else
             double range = (double)max - (double)min;
             int offset = (int)(_random.NextDouble() * (range + 1.0));
@@ -179,8 +181,32 @@ namespace DryFish.ILib.Random
                 return min;
 
 #if NET6_0_OR_GREATER
-            // .NET 6+ has built-in method for long range
-            return System.Random.Shared.NextInt64(min, max + 1);
+            // Handle max == long.MaxValue case safely
+            if (max < long.MaxValue)
+            {
+                return System.Random.Shared.NextInt64(min, max + 1);
+            }
+
+            // For max == long.MaxValue, we need special handling
+            ulong range = (ulong)(max - min);
+            if (range == ulong.MaxValue)
+            {
+                Span<byte> buffer = stackalloc byte[8];
+                System.Random.Shared.NextBytes(buffer);
+                return BitConverter.ToInt64(buffer);
+            }
+
+            // Rejection sampling for uniform distribution
+            ulong limit = ulong.MaxValue - ulong.MaxValue % (range + 1);
+            Span<byte> bytes = stackalloc byte[8];
+            ulong uval;
+            do
+            {
+                System.Random.Shared.NextBytes(bytes);
+                uval = BitConverter.ToUInt64(bytes);
+            } while (uval >= limit);  // Use >= for perfect uniformity
+
+            return min + (long)(uval % (range + 1));
 #else
             // For older frameworks, use rejection sampling to avoid bias
             ulong range = (ulong)(max - min);
@@ -193,7 +219,7 @@ namespace DryFish.ILib.Random
                 return BitConverter.ToInt64(buffer, 0);
             }
             
-            // Rejection sampling to eliminate bias
+            // Rejection sampling with >= for perfect uniformity
             ulong limit = ulong.MaxValue - ulong.MaxValue % (range + 1);
             byte[] bytes = GetByteBuffer();
             ulong uval;
@@ -202,7 +228,7 @@ namespace DryFish.ILib.Random
             {
                 _random.NextBytes(bytes);
                 uval = BitConverter.ToUInt64(bytes, 0);
-            } while (uval > limit);
+            } while (uval >= limit);  // Use >= for perfect uniformity
             
             return min + (long)(uval % (range + 1));
 #endif
@@ -231,7 +257,6 @@ namespace DryFish.ILib.Random
                 return min;
             
             // Get a random double and convert to decimal
-            // Using 28-29 digits of precision (maximum for decimal)
             double randomDouble = _random.NextDouble();
             decimal randomDecimal = (decimal)randomDouble;
             
@@ -254,13 +279,9 @@ namespace DryFish.ILib.Random
             if (min == max)
                 return min;
             
-            // Generate random integer with specified precision
-            long multiplier = (long)Math.Pow(10, precision);
-            long minScaled = (long)(min * multiplier);
-            long maxScaled = (long)(max * multiplier);
-            
-            long randomScaled = IRandomLong(minScaled, maxScaled);
-            return randomScaled / (decimal)multiplier;
+            // Safer approach: generate random decimal and round to precision
+            decimal randomValue = IRandomDecimal(min, max);
+            return Math.Round(randomValue, precision, MidpointRounding.AwayFromZero);
         }
         
         /// <summary>
@@ -298,13 +319,21 @@ namespace DryFish.ILib.Random
             return IRandomFromArray(ConsoleColors);
         }
 
+        // Generic static class for caching enum values
+        private static class EnumCache<T> where T : Enum
+        {
+            public static readonly T[] Values = (T[])Enum.GetValues(typeof(T));
+        }
+
         /// <summary>
         /// Returns a random element from an enumeration
         /// </summary>
         public static T IRandomEnum<T>() where T : Enum
         {
-            var values = Enum.GetValues(typeof(T));
-            return (T)values.GetValue(_random.Next(values.Length))!;
+            var values = EnumCache<T>.Values;
+            if (values.Length == 0)
+                throw new ArgumentException("Enum has no values");
+            return values[_random.Next(values.Length)];
         }
 
         /// <summary>
@@ -312,11 +341,28 @@ namespace DryFish.ILib.Random
         /// </summary>
         public static T IRandomEnum<T>(T exclude) where T : Enum
         {
-            var values = Enum.GetValues(typeof(T));
+            var values = EnumCache<T>.Values;
+            if (values.Length == 0)
+                throw new ArgumentException("Enum has no values");
+
+            // Check if there's at least one non-excluded value
+            bool hasOther = false;
+            foreach (var val in values)
+            {
+                if (!val.Equals(exclude))
+                {
+                    hasOther = true;
+                    break;
+                }
+            }
+            if (!hasOther)
+                throw new ArgumentException("All values in the enum are excluded");
+
+            // Random selection with rejection
             T result;
             do
             {
-                result = (T)values.GetValue(_random.Next(values.Length))!;
+                result = values[_random.Next(values.Length)];
             } while (result.Equals(exclude));
             return result;
         }
