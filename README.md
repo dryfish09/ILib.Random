@@ -36,7 +36,7 @@ NuGet\Install-Package DryFish.ILib.Random
 
 ### PackageReference
 ```xml
-<PackageReference Include="DryFish.ILib.Random" Version="2026.1.0" />
+<PackageReference Include="DryFish.ILib.Random" Version="2026.2.0" />
 ```
 
 ## 🚀 Quick Start
